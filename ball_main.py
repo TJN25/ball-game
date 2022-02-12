@@ -2,7 +2,8 @@ import random
 
 import pygame as p
 import ball_engine
-
+from pygame import mixer
+import math
 
 '''
 Play as an object moving around similar to snake collecting target objects.
@@ -15,7 +16,7 @@ HEIGHT = 1080
 OBJECT_SIZE = 50
 WALL_THICKNESS = 25
 MAX_FPS = 60
-
+VOLUME = 0.01
 
 #game physics
 ACCELERATION = 10
@@ -34,13 +35,29 @@ IMAGES['mine-blue'] = p.image.load('images/mine-blue.png')
 IMAGES['explosion-1'] = p.image.load('images/explosion-1.png')
 IMAGES['explosion-2'] = p.image.load('images/explosion-2.png')
 IMAGES['explosion-3'] = p.image.load('images/explosion-3.png')
+IMAGES['bg'] = p.image.load('images/field.png')
+
+SOUNDS = {}
+
 
 
 N_OF_ENEMIES = 1
 
 p.init()
 
+mixer.music.load('sounds/drone.mp3')
+mixer.music.play(-1)
+mixer.music.set_volume(VOLUME)
+
+target_hit_sound = mixer.Sound('sounds/mixkit-bonus-earned-in-video-game-2058.wav')
+enemy_reset = mixer.Sound('sounds/mixkit-thin-metal-card-deck-shuffle-3175.wav')
+enemy_follow= mixer.Sound('sounds/mixkit-hard-horror-hit-drum-565.wav')
+near_miss_sound = mixer.Sound('sounds/swoosh.mp3')
+bounce_sound = mixer.Sound('sounds/sfx-boing9.mp3')
+game_over_sound = mixer.Sound('sounds/mixkit-low-explosion-indoors-2187.wav')
+
 def main():
+    closest_enemy = WIDTH
     screen = p.display.set_mode((WIDTH, HEIGHT))
     clock = p.time.Clock()
     screen.fill(p.Color(LIGHT_GRAY))
@@ -86,6 +103,8 @@ def main():
                     right_key_down = False
                     up_key_down = False
                     down_key_down = False
+                    mixer.music.play(-1)
+                    mixer.music.set_volume(VOLUME)
             elif e.type == p.KEYUP:
                 if e.key == p.K_LEFT:
                     left_key_down = False
@@ -118,33 +137,57 @@ def main():
                     enemy.update_speed(y=1)
 
             player.updatePos()
+            if player.wall_collision:
+                bounce_sound.play()
             target.updatePos()
             if len(enemies) > 10:
+                enemy_reset.play()
                 for i in range(8, -1 , -1):
                     enemies.remove(enemies[i])
+            closest_enemy = WIDTH
             for enemy in enemies:
                 if not game_over:
                     enemy.updatePos(player.position)
                     enemy.follow_player(player.position, player.xspeed, player.yspeed)
                     game_over = enemy.collide_with_player(player.position[0], player.position[1], player.object_thickness)
+                    enemy_distance = math.sqrt((player.position[0] + player.object_thickness/2 - enemy.position[0] - enemy.object_thickness/2) ** 2 + \
+                    (player.position[1] + player.object_thickness/2 - enemy.position[1] - enemy.object_thickness/2) ** 2)
+                    if closest_enemy > enemy_distance:
+                        closest_enemy = enemy_distance
+                    
+                    enemy_volume = (WIDTH - closest_enemy)/WIDTH
+                    enemy_volume = ((enemy_volume * 10) ** 4)/10000
+                    mixer.music.set_volume(enemy_volume)
             target_hit = player.collide_with_target(target.position, target.object_thickness)
             if target_hit:
+                target_hit_sound.play()
                 target = ball_engine.Target(HEIGHT, WIDTH, WALL_THICKNESS, OBJECT_SIZE, ACCELERATION, MAX_FPS)
                 if random.randint(0,100) >= 20:
                     enemies.append(ball_engine.Enemy(HEIGHT, WIDTH, WALL_THICKNESS,
                                                      OBJECT_SIZE, ACCELERATION, MAX_FPS,
                                                      player.position[0], player.position[1], player_score = player.score))
+                    if enemies[-1].follow:
+                        enemy_follow.play()
             drawWalls(screen, HEIGHT, WIDTH, WALL_THICKNESS, DARK_GREEN)
             drawHeaderRegion(screen, player)
             drawTarget(screen, target)
             drawEnemies(screen, enemies)
             drawBall(screen, player)
+            if game_over:
+                game_over_sound.play()
+                mixer.music.fadeout(2000)
+
+        
+            
+           
 
         clock.tick(MAX_FPS)
         p.display.flip()
 
 def drawWalls(screen, h, w, wall, colour_value):
     screen.fill(p.Color(LIGHT_GRAY))
+    # screen.blit(p.transform.scale(IMAGES['bg'], (w, h - wall * 2)),
+    #                     p.Rect(0, wall * 2, w, h - wall * 2))
     #draw bottom
     s = p.Surface((w, wall))
     s.fill(p.Color(colour_value))

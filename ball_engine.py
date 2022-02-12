@@ -25,6 +25,7 @@ class Player():
         self.score = 0
         self.ycount = 0
         self.xcount = 0
+        self.near_miss = False
 
     def updatePos(self):
         current_x = self.position[0]
@@ -37,6 +38,7 @@ class Player():
 
 
     def check_collision(self):
+        self.wall_collision = False
         if self.yspeed != 0:
             if self.position[1] + self.yspeed + self.object_thickness > (self.height - self.wall_thickness): #going down
                 self.wall_collision = True
@@ -84,8 +86,13 @@ class Player():
                 self.xspeed += (self.position[0] - target_position[0]) /target_size
                 self.yspeed += (self.position[1] - target_position[1]) / target_size
                 self.score += 1
+                self.near_miss = False
                 return True
             else:
+                if abs(player_x - target_position[0]) <= self.object_thickness and abs(player_y - target_position[1]) <= self.object_thickness:
+                    self.near_miss = True
+                else:
+                    self.near_miss = False
                 return False
         else:
             return False
@@ -234,15 +241,6 @@ class Enemy():
         if distance_to_player < (player_size/2 + self.object_thickness/2):
             self.gameOver = True
 
-
-        # if (player_x < self.position[0] < player_x + player_size * 0.9) or \
-        #         (player_x < self.position[0] + self.object_thickness  * 0.9 < player_x + player_size  * 0.9): #x is overlapping
-        #     if (player_y < self.position[1] < player_y + player_size  * 0.9) or \
-        #         (player_y < self.position[1] + self.object_thickness  * 0.9 < player_y + player_size  * 0.9): # y is overlapping
-        #         self.xspeed += (self.position[0] - player_x) / self.object_thickness
-        #         self.yspeed += (self.position[1] - player_y) / self.object_thickness
-        #         self.explode = True
-        #         self.gameOver = True
         return self.gameOver
 
     def explode_player(self, player_x, player_y, player_size, enemy_size):
